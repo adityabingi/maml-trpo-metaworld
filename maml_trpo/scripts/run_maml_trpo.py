@@ -106,7 +106,6 @@ class Trainer:
         # meta-train and meta-test envs have same number of task variations in Metaworld benchmark
         # Eval-itrs is to evaluate for each task variation across meta-train and meta-test envs
         self.eval_itrs =  int(len(self.benchmark.test_tasks)/len(self.benchmark.test_classes))
-        self.meta_eval_batch_size = len(self.benchmark.test_classes)
 
         self.metalearner = MetaLearner(
             policy = self.policy,
@@ -144,7 +143,8 @@ class Trainer:
             logs.update(train_logs) 
 
             if itr==0 or ((itr+1)% self.meta_eval_freq)==0:
-                test_tasks = self.test_task_sampler.sample_tasks(self.meta_eval_batch_size)
+                meta_batch_size = len(self.benchmark.test_classes)
+                test_tasks = self.test_task_sampler.sample_tasks(meta_batch_size)
                 test_logs = self.metalearner.evaluate_step(test_tasks, self.sampler)
                 logs.update(test_logs)
 
@@ -160,9 +160,12 @@ class Trainer:
 
         if eval_on == 'train_tasks':
             task_sampler = self.task_sampler
+            meta_batch_size = len(self.benchmark.train_classes)
             prefix ='mt_tr'
+            
         else:
             task_sampler = self.test_task_sampler
+            meta_batch_size = len(self.benchmark.test_classes)
             prefix ='mt_ts'
 
         if render==True:
@@ -171,7 +174,7 @@ class Trainer:
             sampler = self.sampler
 
         for itr in range(self.eval_itrs):
-            tasks = task_sampler.sample_tasks(self.meta_eval_batch_size, shuffle=False)
+            tasks = task_sampler.sample_tasks(meta_batch_size, shuffle=False)
             logs = self.metalearner.evaluate_step(tasks, sampler, log_videofn=self.logger.log_videos,
                                                                 render=render, prefix=prefix,video_itr=itr)
             for key, value in logs.items():
@@ -197,7 +200,7 @@ def main():
 
     parser.add_argument('--use_gae', action='store_true')
     parser.add_argument('--gae_lam', type=float, default=0.95)
-    parser.add_argument('--gamma', type=float, default=1.0)
+    parser.add_argument('--gamma', type=float, default=0.99)
 
     parser.add_argument('--meta_batch_size', '-mb', type=int, default=20) # tasks collected per meta train iteration
     parser.add_argument('--episodes_per_task', type=int, default=10) # rollouts collected per a single task
